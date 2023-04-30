@@ -57,7 +57,6 @@ const socketUtility = (socket) => {
       user.push({
         userId: data.userId,
         socketId: socket.id,
-        sendProposal: data.sendProposal,
       });
     }
     // console.log("user", user);
@@ -70,7 +69,22 @@ const socketUtility = (socket) => {
     socket.join(
       filterSerialized.find(
         (item) =>
-          item.projectName === data.projectName && item.userId === data.userId
+          item.projectName === data.projectName &&
+          Number(item.userId) === Number(data.userId)
+      ).projectName +
+        "_" +
+        filterSerialized.find(
+          (item) =>
+            item.projectName === data.projectName &&
+            Number(item.userId) === Number(data.userId)
+        ).userId
+    );
+
+    socket.join(
+      filterSerialized.find(
+        (item) =>
+          item.projectName === data.projectName &&
+          Number(item.userId) === Number(data.userId)
       ).projectName
     );
 
@@ -112,7 +126,7 @@ io.on("connection", (socket) => {
   // app.socket = socket;
 });
 
-const socketNotify = (filter, event, userId,send, res) => {
+const socketNotify = (filter, event, userId, send, res) => {
   // console.log("filter", filter);
   // console.log("event", event);
   //   console.log("app.socketIo", app.socketIo);
@@ -126,7 +140,7 @@ const socketNotify = (filter, event, userId,send, res) => {
   const socketId = user.find((item) => {
     return Number(item.userId) === Number(userId);
   })?.socketId;
-  console.log("socketId", socketId);
+  // console.log("socketId", socketId);
   // app.socketIo.to(filter).emit("response", data);// to send a specific project notification
   // app.socketIo.to(socketId).emit("response", data); // to send a specific project notification to a specific user
   // first check the user id is exist in correct project name then send notification
@@ -137,16 +151,16 @@ const socketNotify = (filter, event, userId,send, res) => {
     );
   });
 
-
   // console.log("isExist", isExist);
   if (isExist) {
     if (send === "all") {
       app.socketIo.to(filter).emit("response", data);
     } else if (send === "user") {
-      app.socketIo.to(socketId).emit("response", data);
+      // app.socketIo.to(socketId).emit("response", data);
+      app.socketIo.to(`${filter}_${userId}`).emit("response", data);
     }
   } else {
-    console.log("user not found in this project");
+    // console.log("user not found in this project");
     return res.status(400).json({ error: "user not found in this project" });
   }
 };
@@ -180,7 +194,7 @@ app.post("/notify", jsonParser, (req, res) => {
   }
 
   var filter = req?.body?.projectName;
-  // console.log("filter", req?.body);
+  console.log("filter", req?.body);
   const isExist = subscribers.find((item) => {
     return item?.projectName === filter;
   })?.projectName;
