@@ -1,9 +1,15 @@
 const express = require("express");
 const { createServer } = require("http");
 var bodyParser = require("body-parser");
+require('dotenv').config()
 
 const { Server } = require("socket.io");
 const app = express();
+
+const { MongoClient, ServerApiVersion } = require('mongodb');
+const uri = process.env.MONGODB_URI;
+// console.log("uri", uri);
+
 // create application/json parser
 var jsonParser = bodyParser.json();
 
@@ -15,8 +21,31 @@ const io = new Server(httpServer, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"],
-  },
+  },  
 });
+
+// Create a MongoClient with a MongoClientOptions object to set the Stable API version
+const client = new MongoClient(uri, {
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: true,
+    deprecationErrors: true,
+  }
+}); 
+async function run() {
+  try {
+    // Connect the client to the server	(optional starting in v4.7)
+    await client.connect();
+    // Send a ping to confirm a successful connection
+    await client.db("pushNotification").command({ ping: 1 });
+    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+  } finally {
+    // Ensures that the client will close when you finish/error
+    await client.close();
+  }
+}
+run().catch(console.dir);
+
 
 let subscribers = [];
 let user = [];
@@ -119,6 +148,7 @@ const socketUtility = (socket) => {
   });
 };
 
+//socket connection
 io.on("connection", (socket) => {
   // console.log("a user connected", socket.id);
   verifySocketToken(socket, socketUtility);
