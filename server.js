@@ -51,6 +51,10 @@ async function run() {
       .db("pushNotification")
       .collection("UserAppID");
 
+    const saveUserJWTTokencollection = client
+      .db("pushNotification")
+      .collection("JWTTokenForUserInfo");
+
     //get data from mongodb
     app.get("/getdata", async (req, res) => {
       const results = await UserAppIdCollection.find({}).toArray();
@@ -61,11 +65,40 @@ async function run() {
     app.post("/jwt", jsonParser, async (req, res) => {
       const body = req.body;
       const token = jwtFunction(body);
+      //first check is token already exist in mongodb
+      const getToken = await saveUserJWTTokencollection.findOne({
+        token: token,
+      });
+      if (getToken) {
+        res.status(400).json({ message: "token already exist" });
+        return;
+      }
       //decode token
-      var decoded = "eyJpYXQiOjE2ODI5NDkzNzQsImV4cCI6MTY4Mjk1Mjk3NH0"
+      let decoded = token.split(".")[1];
       decoded = CryptoJS.enc.Base64.parse(decoded).toString(CryptoJS.enc.Utf8);
-      console.log("decoded", decoded);
-      res.json({ token: token });
+      //save token in mongodb
+      await saveUserJWTTokencollection.insertOne({
+        token: token,
+        decoded: decoded,
+      });
+
+      res.status(200).json({ token: token, decoded: decoded });
+    });
+
+    //delete token from mongodb
+    app.delete("/jwt", jsonParser, async (req, res) => {
+      const token = req.body.token;
+      // console.log("token", token);
+      // only this match token will be deleted
+      const getToken = await saveUserJWTTokencollection.findOne({
+        token: token,
+      });
+      if (getToken) {
+        await saveUserJWTTokencollection.deleteOne({ token: token });
+        res.status(200).json({ message: "token deleted" });
+      } else {
+        res.status(400).json({ message: "token not found" });
+      }
     });
 
     const verifySocketToken = (socket, callback) => {
