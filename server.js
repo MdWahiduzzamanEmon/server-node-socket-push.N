@@ -2,11 +2,13 @@ const express = require("express");
 const { createServer } = require("http");
 var bodyParser = require("body-parser");
 require("dotenv").config();
+var CryptoJS = require("crypto-js");
 
 const { Server } = require("socket.io");
 const app = express();
 
 const { MongoClient, ServerApiVersion } = require("mongodb");
+const jwtFunction = require("./JWT/CrateJWT");
 const uri = process.env.MONGODB_URI;
 // console.log("uri", uri);
 
@@ -54,6 +56,16 @@ async function run() {
       const results = await UserAppIdCollection.find({}).toArray();
       console.log("results", results);
       res.json(results);
+    });
+
+    app.post("/jwt", jsonParser, async (req, res) => {
+      const body = req.body;
+      const token = jwtFunction(body);
+      //decode token
+      var decoded = "eyJpYXQiOjE2ODI5NDkzNzQsImV4cCI6MTY4Mjk1Mjk3NH0"
+      decoded = CryptoJS.enc.Base64.parse(decoded).toString(CryptoJS.enc.Utf8);
+      console.log("decoded", decoded);
+      res.json({ token: token });
     });
 
     const verifySocketToken = (socket, callback) => {
@@ -203,7 +215,7 @@ async function run() {
             payload: event,
             userId: userId,
           });
-          console.log("results", results);
+          // console.log("results", results);
           // res.status(200).json({ message: "success", data: results });
 
           app.socketIo.to(`${filter}_${userId}`).emit("response", data);
@@ -216,6 +228,7 @@ async function run() {
       }
     };
 
+    //post for notifications
     app.post("/notify", jsonParser, (req, res) => {
       // console.log("req.body", req.body);
       if (
